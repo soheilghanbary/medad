@@ -1,5 +1,14 @@
 import { relations } from 'drizzle-orm'
-import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core'
+import { nanoid } from 'nanoid'
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -89,5 +98,101 @@ export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
+  }),
+}))
+
+export const pageStatusEnum = pgEnum('page_status', [
+  'draft',
+  'published',
+  'archived',
+])
+
+export const page = pgTable(
+  'page',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id'),
+    title: text('title').notNull().default('Untitled'),
+    content: text('content'),
+    icon: text('icon'),
+    coverImage: text('cover_image'),
+    status: pageStatusEnum('status').notNull().default('draft'),
+    position: integer('position').notNull().default(0),
+    isFavorite: boolean('is_favorite').notNull().default(false),
+    isPublic: boolean('is_public').notNull().default(false),
+    deletedAt: timestamp('deleted_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('page_userId_idx').on(table.userId),
+    index('page_parentId_idx').on(table.parentId),
+    index('page_userId_deletedAt_idx').on(table.userId, table.deletedAt),
+  ]
+)
+
+export const note = pgTable(
+  'note',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    pageId: text('page_id')
+      .notNull()
+      .references(() => page.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    content: text('content').notNull().default(''),
+    position: integer('position').notNull().default(0),
+    isPinned: boolean('is_pinned').notNull().default(false),
+    isFavorite: boolean('is_favorite').notNull().default(false),
+    tags: text('tags'),
+    deletedAt: timestamp('deleted_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('note_userId_idx').on(table.userId),
+    index('note_pageId_idx').on(table.pageId),
+    index('note_userId_deletedAt_idx').on(table.userId, table.deletedAt),
+    index('note_pageId_position_idx').on(table.pageId, table.position),
+  ]
+)
+
+export const pageRelations = relations(page, ({ one, many }) => ({
+  user: one(user, {
+    fields: [page.userId],
+    references: [user.id],
+  }),
+  parent: one(page, {
+    fields: [page.parentId],
+    references: [page.id],
+    relationName: 'page_children',
+  }),
+  children: many(page, { relationName: 'page_children' }),
+  notes: many(note),
+}))
+
+export const noteRelations = relations(note, ({ one }) => ({
+  user: one(user, {
+    fields: [note.userId],
+    references: [user.id],
+  }),
+  page: one(page, {
+    fields: [note.pageId],
+    references: [page.id],
   }),
 }))

@@ -7,3 +7,10 @@ export const getSession = async () => {
   })
   return session
 }
+
+export const getUserId = async () => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+  return session?.user.id as string
+}

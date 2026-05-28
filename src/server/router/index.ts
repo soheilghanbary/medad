@@ -1,11 +1,7 @@
-import { os } from '@orpc/server'
+import { noteRouter } from './note.router'
+import { pageRouter } from './page.router'
 
 export const router = {
-  hello: os
-    .route({
-      method: 'GET',
-    })
-    .handler(async () => {
-      return { message: 'Hello World!' }
-    }),
+  page: pageRouter,
+  note: noteRouter,
 }
